@@ -1,5 +1,3 @@
-// api-aula-global/routes/reservasRoutes.js
-
 const express     = require('express');
 const router      = express.Router();
 const pool        = require('../config/db');
@@ -128,12 +126,13 @@ router.get('/profesor/:profesorId', verifyToken, async (req, res) => {
     const [reservas] = await pool.execute(
       `SELECT
          r.id,
+         hc.id AS hora_clase_id,   -- <----- AQUÍ se agrega el campo necesario
          DATE_FORMAT(hc.fecha, '%d-%m-%Y') AS fechaBloque,
          DATE_FORMAT(hc.inicio, '%H:%i')   AS horaInicio,
          DATE_FORMAT(hc.fin, '%H:%i')      AS horaFin,
-         m.nombre_materia                 AS materia,
-         n.nombre_nivel                   AS dificultad,
-         a.id                             AS alumnoId,
+         m.nombre_materia                  AS materia,
+         n.nombre_nivel                    AS dificultad,
+         a.id                              AS alumnoId,
          CONCAT(a.nombre, ' ', a.apellido) AS alumno
        FROM reserva_clase r
        JOIN hora_clase hc ON r.hora_clase_id = hc.id
@@ -169,12 +168,13 @@ router.get('/profesor/:profesorId/historial', verifyToken, async (req, res) => {
     const [historial] = await pool.execute(
       `SELECT
          r.id,
+         hc.id AS hora_clase_id,
          DATE_FORMAT(hc.fecha, '%d-%m-%Y') AS fechaBloque,
          DATE_FORMAT(hc.inicio, '%H:%i')   AS horaInicio,
          DATE_FORMAT(hc.fin, '%H:%i')      AS horaFin,
-         m.nombre_materia                 AS materia,
-         n.nombre_nivel                   AS dificultad,
-         a.id                             AS alumnoId,
+         m.nombre_materia                  AS materia,
+         n.nombre_nivel                    AS dificultad,
+         a.id                              AS alumnoId,
          CONCAT(a.nombre, ' ', a.apellido) AS alumno
        FROM reserva_clase r
        JOIN hora_clase hc ON r.hora_clase_id = hc.id
@@ -207,12 +207,13 @@ router.get('/alumno/:alumnoId', verifyToken, async (req, res) => {
     const [reservas] = await pool.execute(
       `SELECT
          r.id,
+         hc.id AS hora_clase_id,   -- <----- AQUÍ también va el campo necesario
          DATE_FORMAT(hc.fecha, '%Y-%m-%d') AS fechaBloque,
          DATE_FORMAT(hc.inicio, '%H:%i')   AS horaInicio,
          DATE_FORMAT(hc.fin, '%H:%i')      AS horaFin,
-         m.nombre_materia                 AS materia,
-         n.nombre_nivel                   AS dificultad,
-         p.id                             AS profesorId,
+         m.nombre_materia                  AS materia,
+         n.nombre_nivel                    AS dificultad,
+         p.id                              AS profesorId,
          CONCAT(p.nombre, ' ', p.apellido) AS profesor
        FROM reserva_clase r
        JOIN hora_clase hc ON r.hora_clase_id = hc.id
@@ -247,12 +248,13 @@ router.get('/alumno/:alumnoId/historial', verifyToken, async (req, res) => {
     const [historial] = await pool.execute(
       `SELECT
          r.id,
+         hc.id AS hora_clase_id,
          DATE_FORMAT(hc.fecha, '%Y-%m-%d') AS fechaBloque,
          DATE_FORMAT(hc.inicio, '%H:%i')   AS horaInicio,
          DATE_FORMAT(hc.fin, '%H:%i')      AS horaFin,
-         m.nombre_materia                 AS materia,
-         n.nombre_nivel                   AS dificultad,
-         p.id                             AS profesorId,
+         m.nombre_materia                  AS materia,
+         n.nombre_nivel                    AS dificultad,
+         p.id                              AS profesorId,
          CONCAT(p.nombre, ' ', p.apellido) AS profesor
        FROM reserva_clase r
        JOIN hora_clase hc ON r.hora_clase_id = hc.id
@@ -284,12 +286,13 @@ router.get('/:id', verifyToken, async (req, res) => {
     const [result] = await pool.execute(
       `SELECT 
          r.id,
+         hc.id AS hora_clase_id,
          DATE_FORMAT(hc.fecha, '%Y-%m-%d') AS fecha,
          DATE_FORMAT(hc.inicio, '%H:%i')   AS horaInicio,
          DATE_FORMAT(hc.fin, '%H:%i')      AS horaFin,
-         m.nombre_materia                 AS materia,
-         n.nombre_nivel                   AS nivel,
-         c.monto                          AS monto,
+         m.nombre_materia                  AS materia,
+         n.nombre_nivel                    AS nivel,
+         c.monto                           AS monto,
          CONCAT(p.nombre, ' ', p.apellido) AS profesor
        FROM reserva_clase r
        JOIN hora_clase hc ON r.hora_clase_id = hc.id
