@@ -126,7 +126,7 @@ router.get('/profesor/:profesorId', verifyToken, async (req, res) => {
     const [reservas] = await pool.execute(
       `SELECT
          r.id,
-         hc.id AS hora_clase_id,   -- <----- AQUÍ se agrega el campo necesario
+         hc.id AS hora_clase_id,
          DATE_FORMAT(hc.fecha, '%d-%m-%Y') AS fechaBloque,
          DATE_FORMAT(hc.inicio, '%H:%i')   AS horaInicio,
          DATE_FORMAT(hc.fin, '%H:%i')      AS horaFin,
@@ -207,7 +207,7 @@ router.get('/alumno/:alumnoId', verifyToken, async (req, res) => {
     const [reservas] = await pool.execute(
       `SELECT
          r.id,
-         hc.id AS hora_clase_id,   -- <----- AQUÍ también va el campo necesario
+         hc.id AS hora_clase_id,
          DATE_FORMAT(hc.fecha, '%Y-%m-%d') AS fechaBloque,
          DATE_FORMAT(hc.inicio, '%H:%i')   AS horaInicio,
          DATE_FORMAT(hc.fin, '%H:%i')      AS horaFin,

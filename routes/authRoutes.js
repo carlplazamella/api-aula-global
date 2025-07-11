@@ -1,3 +1,5 @@
+// api-aula-global/routes/authRoutes.js
+
 require('dotenv').config();
 const express = require('express');
 const jwt     = require('jsonwebtoken');
@@ -45,16 +47,16 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// Login para alumno/profesor
+// Login para alumno/profesor, ahora guarda OneSignal playerId
 router.post('/login', async (req, res) => {
   console.log('➡️ [LOGIN] req.body =', req.body);
-  const { correo, password } = req.body;
+  const { correo, password, playerId } = req.body;
   if (!correo || !password) {
     return res.status(400).json({ mensaje: 'Correo y contraseña son obligatorios.' });
   }
 
   try {
-    // 1) Intentar en alumno
+    // 1) Intentar en tabla alumno
     let [rows] = await pool.execute(
       `SELECT id, nombre, apellido, correo, password, activo
          FROM alumno
@@ -68,9 +70,17 @@ router.post('/login', async (req, res) => {
       const valid = hash.startsWith('pbkdf2_sha256$')
         ? verifyDjangoPassword(password, hash)
         : await bcrypt.compare(password, hash);
+
       console.log('✔️ [LOGIN] alumno valid =', valid);
       if (valid) {
-        // Construimos payload incluyendo apellido
+        // Guarda playerId si se envió en el body
+        if (playerId) {
+          await pool.execute(
+            `UPDATE alumno SET oneSignalPlayerId = ? WHERE id = ?`,
+            [playerId, usr.id]
+          );
+        }
+
         const payload = {
           id:       usr.id,
           nombre:   usr.nombre,
@@ -83,7 +93,7 @@ router.post('/login', async (req, res) => {
       }
     }
 
-    // 2) Intentar en profesor
+    // 2) Intentar en tabla profesor
     [rows] = await pool.execute(
       `SELECT id, nombre, apellido, email AS correo, password, activo
          FROM profesor
@@ -97,9 +107,17 @@ router.post('/login', async (req, res) => {
       const valid = hash.startsWith('pbkdf2_sha256$')
         ? verifyDjangoPassword(password, hash)
         : await bcrypt.compare(password, hash);
+
       console.log('✔️ [LOGIN] profesor valid =', valid);
       if (valid) {
-        // Construimos payload incluyendo apellido
+        // Guarda playerId si se envió en el body
+        if (playerId) {
+          await pool.execute(
+            `UPDATE profesor SET oneSignalPlayerId = ? WHERE id = ?`,
+            [playerId, usr.id]
+          );
+        }
+
         const payload = {
           id:       usr.id,
           nombre:   usr.nombre,
@@ -114,8 +132,9 @@ router.post('/login', async (req, res) => {
 
     console.log('⚠️ [LOGIN] credenciales inválidas');
     return res.status(401).json({ mensaje: 'Credenciales inválidas.' });
+
   } catch (err) {
-    console.error(err);
+    console.error('❌ Error en /login:', err);
     return res.status(500).json({ mensaje: 'Error interno al iniciar sesión.' });
   }
 });
