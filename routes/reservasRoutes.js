@@ -16,7 +16,10 @@ router.post('/reservar', async (req, res) => {
     await connection.beginTransaction();
 
     const [[slot]] = await connection.execute(
-      `SELECT id, clase_id, fecha, inicio FROM hora_clase WHERE id = ? FOR UPDATE`,
+      `SELECT id, clase_id, fecha, inicio
+         FROM hora_clase
+        WHERE id = ? 
+          FOR UPDATE`,
       [bloqueHorarioId]
     );
     if (!slot) {
@@ -25,7 +28,10 @@ router.post('/reservar', async (req, res) => {
     }
 
     const [existing] = await connection.execute(
-      `SELECT id FROM reserva_clase WHERE hora_clase_id = ? FOR UPDATE`,
+      `SELECT id
+         FROM reserva_clase
+        WHERE hora_clase_id = ?
+          FOR UPDATE`,
       [bloqueHorarioId]
     );
     if (existing.length) {
@@ -33,31 +39,34 @@ router.post('/reservar', async (req, res) => {
       return res.status(409).json({ mensaje: 'El bloque ya está reservado' });
     }
 
+    // Crear reserva con todas las columnas NOT NULL
     const [reservaRes] = await connection.execute(
-  `INSERT INTO reserva_clase
-     (alumno_id, hora_clase_id, pago_id, fecha_reserva, estado)
-   VALUES
-     (?, ?, NULL, NOW(), 'PENDIENTE')`,
-  [alumnoId, bloqueHorarioId]
-);
+      `INSERT INTO reserva_clase
+         (alumno_id, hora_clase_id, pago_id, fecha_reserva, estado)
+       VALUES
+         (?, ?, NULL, NOW(), 'PENDIENTE')`,
+      [alumnoId, bloqueHorarioId]
+    );
 
     // Obtener nombre completo del alumno
     const [[alumno]] = await connection.execute(
-      `SELECT CONCAT(nombre, ' ', apellido) AS nombreCompleto FROM alumno WHERE id = ?`,
+      `SELECT CONCAT(nombre, ' ', apellido) AS nombreCompleto
+         FROM alumno
+        WHERE id = ?`,
       [alumnoId]
     );
 
     // Obtener info de la clase y profesor
     const [[claseProfesor]] = await connection.execute(
       `SELECT
-         p.usuario AS profesorUsuario,
-         m.nombre_materia,
+         p.usuario         AS profesorUsuario,
+         m.nombre_materia  AS nombre_materia,
          hc.fecha,
          hc.inicio
        FROM hora_clase hc
-       JOIN clase c ON hc.clase_id = c.id
-       JOIN profesor p ON c.profesor_id = p.id
-       JOIN materia m ON c.materia_id = m.id
+       JOIN clase c     ON hc.clase_id   = c.id
+       JOIN profesor p  ON c.profesor_id = p.id
+       JOIN materia m   ON c.materia_id  = m.id
        WHERE hc.id = ?`,
       [bloqueHorarioId]
     );
@@ -65,13 +74,19 @@ router.post('/reservar', async (req, res) => {
     if (claseProfesor && alumno) {
       const titulo = 'Nueva clase agendada';
       // Formatear fecha a YYYY-MM-DD
-      const fechaStr = claseProfesor.fecha.toISOString().slice(0, 10);
-      const mensaje = `Alumno ${alumno.nombreCompleto} agendó una clase de ${claseProfesor.nombre_materia} para el ${fechaStr} a las ${claseProfesor.inicio}`;
+      const fechaObj = new Date(claseProfesor.fecha);
+      const fechaStr = fechaObj.toISOString().slice(0, 10);
+      const mensaje = 
+        `Alumno ${alumno.nombreCompleto} agendó una clase de `
+        + `${claseProfesor.nombre_materia} para el ${fechaStr} `
+        + `a las ${claseProfesor.inicio}`;
 
       // Crear notificación para el profesor
       await connection.execute(
-        `INSERT INTO notificaciones (usuario, titulo, mensaje, leida, fecha_envio)
-         VALUES (?, ?, ?, 0, NOW())`,
+        `INSERT INTO notificaciones
+           (usuario, titulo, mensaje, leida, fecha_envio)
+         VALUES
+           (?, ?, ?, 0, NOW())`,
         [claseProfesor.profesorUsuario, titulo, mensaje]
       );
     }
@@ -101,6 +116,7 @@ router.post('/pagar', async (req, res) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+
     const [[reserva]] = await connection.execute(
       `SELECT c.monto AS monto
          FROM reserva_clase r
@@ -112,16 +128,21 @@ router.post('/pagar', async (req, res) => {
       await connection.rollback();
       return res.status(404).json({ mensaje: 'Reserva no encontrada' });
     }
+
     const [pagoRes] = await connection.execute(
       `INSERT INTO pago 
          (monto, metodo_pago, estado, transaccion_id)
        VALUES (?, ?, 'COMPLETADO', ?)`,
       [reserva.monto, metodo_pago, 'TRANSACCION-' + Date.now()]
     );
+
     await connection.execute(
-      `UPDATE reserva_clase SET pago_id = ? WHERE id = ?`,
+      `UPDATE reserva_clase
+         SET pago_id = ?
+       WHERE id = ?`,
       [pagoRes.insertId, reservaId]
     );
+
     await connection.commit();
     res.status(200).json({ mensaje: 'Pago simulado exitoso' });
   } catch (error) {
@@ -268,7 +289,7 @@ router.get('/alumno/:alumnoId', verifyToken, async (req, res) => {
        WHERE r.alumno_id = ?
          AND (
            hc.fecha > CURDATE()
-           OR (hc.fecha = CURDATE() AND hc.inicio > CURTIME())
+           OR (hc.fecha = CURDATE() AND hc.inicion > CURTIME())
          )
          AND cal.id IS NULL
        ORDER BY hc.fecha ASC, hc.inicio ASC`,
