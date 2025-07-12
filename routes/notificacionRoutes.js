@@ -1,31 +1,56 @@
 const express = require('express');
-const router  = express.Router();
-const pool    = require('../config/db');
+const router = express.Router();
+const pool = require('../db'); // Ajusta la ruta según tu conexión MySQL
 
-/**
- * GET /api/notificaciones/count
- * Devuelve el número de notificaciones no leídas para el usuario logueado.
- */
-router.get('/count', async (req, res) => {
-  const usuarioId = req.usuarioId; // asumo que lo pones en el middleware verifyToken
+// Obtener notificaciones de un usuario ordenadas por fecha descendente
+router.get('/:usuario', async (req, res) => {
+  const usuario = req.params.usuario;
   try {
-    const [rows] = await pool.execute(
-      `SELECT COUNT(*) AS count
-         FROM notificacion
-        WHERE usuario_id = ?
-          AND leida = FALSE`,
-      [usuarioId]
+    const [rows] = await pool.query(
+      'SELECT id, titulo, mensaje, leida, fecha_envio FROM notificaciones WHERE usuario = ? ORDER BY fecha_envio DESC',
+      [usuario]
     );
-    const count = rows[0]?.count || 0;
-    res.json({ count });
-  } catch (err) {
-    // Si la tabla no existe, devolvemos cero en lugar de error
-    if (err.code === 'ER_NO_SUCH_TABLE') {
-      console.warn('Tabla notificacion no existe — devolviendo count=0');
-      return res.json({ count: 0 });
+    res.json(rows);
+  } catch (error) {
+    console.error('Error al obtener notificaciones:', error);
+    res.status(500).json({ error: 'Error al obtener notificaciones' });
+  }
+});
+
+// Crear una nueva notificación
+router.post('/', async (req, res) => {
+  const { usuario, titulo, mensaje } = req.body;
+  if (!usuario || !titulo || !mensaje) {
+    return res.status(400).json({ error: 'Faltan campos obligatorios' });
+  }
+
+  try {
+    const [result] = await pool.query(
+      'INSERT INTO notificaciones (usuario, titulo, mensaje, leida, fecha_envio) VALUES (?, ?, ?, 0, NOW())',
+      [usuario, titulo, mensaje]
+    );
+    res.status(201).json({ id: result.insertId });
+  } catch (error) {
+    console.error('Error al crear notificación:', error);
+    res.status(500).json({ error: 'Error al crear notificación' });
+  }
+});
+
+// Marcar una notificación como leída
+router.put('/leer/:id', async (req, res) => {
+  const id = req.params.id;
+  try {
+    const [result] = await pool.query(
+      'UPDATE notificaciones SET leida = 1 WHERE id = ?',
+      [id]
+    );
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: 'Notificación no encontrada' });
     }
-    console.error('Error al contar notificaciones no leídas:', err);
-    res.status(500).json({ mensaje: 'Error al contar notificaciones' });
+    res.json({ message: 'Notificación marcada como leída' });
+  } catch (error) {
+    console.error('Error al marcar notificación como leída:', error);
+    res.status(500).json({ error: 'Error al actualizar notificación' });
   }
 });
 

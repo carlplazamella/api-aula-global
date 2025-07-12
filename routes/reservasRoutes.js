@@ -14,14 +14,16 @@ router.post('/reservar', async (req, res) => {
   const connection = await pool.getConnection();
   try {
     await connection.beginTransaction();
+
     const [[slot]] = await connection.execute(
-      `SELECT id FROM hora_clase WHERE id = ? FOR UPDATE`,
+      `SELECT id, clase_id, fecha, inicio FROM hora_clase WHERE id = ? FOR UPDATE`,
       [bloqueHorarioId]
     );
     if (!slot) {
       await connection.rollback();
       return res.status(404).json({ mensaje: 'Bloque no encontrado' });
     }
+
     const [existing] = await connection.execute(
       `SELECT id FROM reserva_clase WHERE hora_clase_id = ? FOR UPDATE`,
       [bloqueHorarioId]
@@ -30,13 +32,51 @@ router.post('/reservar', async (req, res) => {
       await connection.rollback();
       return res.status(409).json({ mensaje: 'El bloque ya está reservado' });
     }
+
+    // Crear reserva
     const [reservaRes] = await connection.execute(
       `INSERT INTO reserva_clase (alumno_id, hora_clase_id) VALUES (?, ?)`,
       [alumnoId, bloqueHorarioId]
     );
+
+    // Obtener nombre completo del alumno
+    const [[alumno]] = await connection.execute(
+      `SELECT CONCAT(nombre, ' ', apellido) AS nombreCompleto FROM alumno WHERE id = ?`,
+      [alumnoId]
+    );
+
+    // Obtener info de la clase y profesor
+    const [[claseProfesor]] = await connection.execute(
+      `SELECT
+         p.usuario AS profesorUsuario,
+         m.nombre_materia,
+         hc.fecha,
+         hc.inicio
+       FROM hora_clase hc
+       JOIN clase c ON hc.clase_id = c.id
+       JOIN profesor p ON c.profesor_id = p.id
+       JOIN materia m ON c.materia_id = m.id
+       WHERE hc.id = ?`,
+      [bloqueHorarioId]
+    );
+
+    if (claseProfesor && alumno) {
+      const titulo = 'Nueva clase agendada';
+      // Formatear fecha a YYYY-MM-DD
+      const fechaStr = claseProfesor.fecha.toISOString().slice(0, 10);
+      const mensaje = `Alumno ${alumno.nombreCompleto} agendó una clase de ${claseProfesor.nombre_materia} para el ${fechaStr} a las ${claseProfesor.inicio}`;
+
+      // Crear notificación para el profesor
+      await connection.execute(
+        `INSERT INTO notificaciones (usuario, titulo, mensaje, leida, fecha_envio)
+         VALUES (?, ?, ?, 0, NOW())`,
+        [claseProfesor.profesorUsuario, titulo, mensaje]
+      );
+    }
+
     await connection.commit();
     res.status(201).json({
-      mensaje:   'Reserva realizada correctamente',
+      mensaje: 'Reserva realizada correctamente',
       reservaId: reservaRes.insertId
     });
   } catch (error) {
