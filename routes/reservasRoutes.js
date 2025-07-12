@@ -18,8 +18,7 @@ router.post('/reservar', async (req, res) => {
     const [[slot]] = await connection.execute(
       `SELECT id, clase_id, fecha, inicio
          FROM hora_clase
-        WHERE id = ?
-          FOR UPDATE`,
+        WHERE id = ? FOR UPDATE`,
       [bloqueHorarioId]
     );
     if (!slot) {
@@ -30,8 +29,7 @@ router.post('/reservar', async (req, res) => {
     const [existing] = await connection.execute(
       `SELECT id
          FROM reserva_clase
-        WHERE hora_clase_id = ?
-          FOR UPDATE`,
+        WHERE hora_clase_id = ? FOR UPDATE`,
       [bloqueHorarioId]
     );
     if (existing.length) {
@@ -39,7 +37,6 @@ router.post('/reservar', async (req, res) => {
       return res.status(409).json({ mensaje: 'El bloque ya está reservado' });
     }
 
-    // Crear reserva con todas las columnas NOT NULL
     const [reservaRes] = await connection.execute(
       `INSERT INTO reserva_clase
          (alumno_id, hora_clase_id, pago_id, fecha_reserva, estado)
@@ -48,7 +45,6 @@ router.post('/reservar', async (req, res) => {
       [alumnoId, bloqueHorarioId]
     );
 
-    // Obtener nombre completo del alumno
     const [[alumno]] = await connection.execute(
       `SELECT CONCAT(nombre, ' ', apellido) AS nombreCompleto
          FROM alumno
@@ -56,11 +52,10 @@ router.post('/reservar', async (req, res) => {
       [alumnoId]
     );
 
-    // Obtener info de la clase y profesor
     const [[claseProfesor]] = await connection.execute(
       `SELECT
-         p.usuario         AS profesorUsuario,
-         m.nombre_materia  AS nombre_materia,
+         p.usuario        AS profesorUsuario,
+         m.nombre_materia AS nombre_materia,
          hc.fecha,
          hc.inicio
        FROM hora_clase hc
@@ -72,15 +67,14 @@ router.post('/reservar', async (req, res) => {
     );
 
     if (claseProfesor && alumno) {
-      const titulo = 'Nueva clase agendada';
+      const titulo   = 'Nueva clase agendada';
       const fechaObj = new Date(claseProfesor.fecha);
       const fechaStr = fechaObj.toISOString().slice(0, 10);
-      const mensaje =
-        `Alumno ${alumno.nombreCompleto} agendó una clase de ` +
-        `${claseProfesor.nombre_materia} para el ${fechaStr} ` +
-        `a las ${claseProfesor.inicio}`;
+      const mensaje  =
+        `Alumno ${alumno.nombreCompleto} agendó una clase de `
+        + `${claseProfesor.nombre_materia} para el ${fechaStr} `
+        + `a las ${claseProfesor.inicio}`;
 
-      // Crear notificación para el profesor
       await connection.execute(
         `INSERT INTO notificaciones
            (usuario, titulo, mensaje, leida, fecha_envio)
@@ -98,7 +92,6 @@ router.post('/reservar', async (req, res) => {
   } catch (error) {
     await connection.rollback();
     console.error('Error al realizar reserva:', error);
-    // Devuelvo detalle del error para depuración
     res.status(500).json({
       mensaje: 'Error al realizar la reserva',
       detalle: error.message
@@ -231,7 +224,7 @@ router.get('/profesor/:profesorId', verifyToken, async (req, res) => {
 router.get('/profesor/:profesorId/historial', verifyToken, async (req, res) => {
   const profesorId = parseInt(req.params.profesorId, 10);
   try {
-    const [historial] = await connection.execute(
+    const [historial] = await pool.execute(
       `SELECT
          r.id,
          hc.id AS hora_clase_id,
@@ -270,7 +263,7 @@ router.get('/profesor/:profesorId/historial', verifyToken, async (req, res) => {
 router.get('/alumno/:alumnoId', verifyToken, async (req, res) => {
   const alumnoId = parseInt(req.params.alumnoId, 10);
   try {
-    const [reservas] = await connection.execute(
+    const [reservas] = await pool.execute(
       `SELECT
          r.id,
          hc.id AS hora_clase_id,
@@ -311,7 +304,7 @@ router.get('/alumno/:alumnoId', verifyToken, async (req, res) => {
 router.get('/alumno/:alumnoId/historial', verifyToken, async (req, res) => {
   const alumnoId = parseInt(req.params.alumnoId, 10);
   try {
-    const [historial] = await connection.execute(
+    const [historial] = await pool.execute(
       `SELECT
          r.id,
          hc.id AS hora_clase_id,
@@ -349,7 +342,7 @@ router.get('/alumno/:alumnoId/historial', verifyToken, async (req, res) => {
 router.get('/:id', verifyToken, async (req, res) => {
   const { id } = req.params;
   try {
-    const [result] = await connection.execute(
+    const [result] = await pool.execute(
       `SELECT 
          r.id,
          hc.id AS hora_clase_id,
