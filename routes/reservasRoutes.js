@@ -38,12 +38,12 @@ router.post('/reservar', async (req, res) => {
     }
 
     const [reservaRes] = await connection.execute(
-      `INSERT INTO reserva_clase
-         (alumno_id, hora_clase_id, pago_id, fecha_reserva, estado)
-       VALUES
-         (?, ?, NULL, NOW(), 'PENDIENTE')`,
-      [alumnoId, bloqueHorarioId]
-    );
+  `INSERT INTO reserva_clase
+     (alumno_id, hora_clase_id, pago_id)
+   VALUES
+     (?, ?, NULL)`,
+  [alumnoId, bloqueHorarioId]
+);
 
     const [[alumno]] = await connection.execute(
       `SELECT CONCAT(nombre, ' ', apellido) AS nombreCompleto
