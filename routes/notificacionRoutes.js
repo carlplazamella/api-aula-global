@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db'); // Ajusta la ruta según tu conexión MySQL
+const pool = require('../config/db');
 
 // Obtener notificaciones de un usuario ordenadas por fecha descendente
 router.get('/:usuario', async (req, res) => {
