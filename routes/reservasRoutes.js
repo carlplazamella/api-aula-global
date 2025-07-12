@@ -18,7 +18,7 @@ router.post('/reservar', async (req, res) => {
     const [[slot]] = await connection.execute(
       `SELECT id, clase_id, fecha, inicio
          FROM hora_clase
-        WHERE id = ? 
+        WHERE id = ?
           FOR UPDATE`,
       [bloqueHorarioId]
     );
@@ -73,13 +73,12 @@ router.post('/reservar', async (req, res) => {
 
     if (claseProfesor && alumno) {
       const titulo = 'Nueva clase agendada';
-      // Formatear fecha a YYYY-MM-DD
       const fechaObj = new Date(claseProfesor.fecha);
       const fechaStr = fechaObj.toISOString().slice(0, 10);
-      const mensaje = 
-        `Alumno ${alumno.nombreCompleto} agendó una clase de `
-        + `${claseProfesor.nombre_materia} para el ${fechaStr} `
-        + `a las ${claseProfesor.inicio}`;
+      const mensaje =
+        `Alumno ${alumno.nombreCompleto} agendó una clase de ` +
+        `${claseProfesor.nombre_materia} para el ${fechaStr} ` +
+        `a las ${claseProfesor.inicio}`;
 
       // Crear notificación para el profesor
       await connection.execute(
@@ -99,7 +98,11 @@ router.post('/reservar', async (req, res) => {
   } catch (error) {
     await connection.rollback();
     console.error('Error al realizar reserva:', error);
-    res.status(500).json({ mensaje: 'Error al realizar la reserva' });
+    // Devuelvo detalle del error para depuración
+    res.status(500).json({
+      mensaje: 'Error al realizar la reserva',
+      detalle: error.message
+    });
   } finally {
     connection.release();
   }
@@ -228,7 +231,7 @@ router.get('/profesor/:profesorId', verifyToken, async (req, res) => {
 router.get('/profesor/:profesorId/historial', verifyToken, async (req, res) => {
   const profesorId = parseInt(req.params.profesorId, 10);
   try {
-    const [historial] = await pool.execute(
+    const [historial] = await connection.execute(
       `SELECT
          r.id,
          hc.id AS hora_clase_id,
@@ -267,7 +270,7 @@ router.get('/profesor/:profesorId/historial', verifyToken, async (req, res) => {
 router.get('/alumno/:alumnoId', verifyToken, async (req, res) => {
   const alumnoId = parseInt(req.params.alumnoId, 10);
   try {
-    const [reservas] = await pool.execute(
+    const [reservas] = await connection.execute(
       `SELECT
          r.id,
          hc.id AS hora_clase_id,
@@ -289,7 +292,7 @@ router.get('/alumno/:alumnoId', verifyToken, async (req, res) => {
        WHERE r.alumno_id = ?
          AND (
            hc.fecha > CURDATE()
-           OR (hc.fecha = CURDATE() AND hc.inicion > CURTIME())
+           OR (hc.fecha = CURDATE() AND hc.inicio > CURTIME())
          )
          AND cal.id IS NULL
        ORDER BY hc.fecha ASC, hc.inicio ASC`,
@@ -308,7 +311,7 @@ router.get('/alumno/:alumnoId', verifyToken, async (req, res) => {
 router.get('/alumno/:alumnoId/historial', verifyToken, async (req, res) => {
   const alumnoId = parseInt(req.params.alumnoId, 10);
   try {
-    const [historial] = await pool.execute(
+    const [historial] = await connection.execute(
       `SELECT
          r.id,
          hc.id AS hora_clase_id,
@@ -346,7 +349,7 @@ router.get('/alumno/:alumnoId/historial', verifyToken, async (req, res) => {
 router.get('/:id', verifyToken, async (req, res) => {
   const { id } = req.params;
   try {
-    const [result] = await pool.execute(
+    const [result] = await connection.execute(
       `SELECT 
          r.id,
          hc.id AS hora_clase_id,
