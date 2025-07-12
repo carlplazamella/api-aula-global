@@ -52,19 +52,19 @@ router.post('/reservar', async (req, res) => {
       [alumnoId]
     );
 
-    const [[claseProfesor]] = await connection.execute(
-      `SELECT
-         p.usuario        AS profesorUsuario,
-         m.nombre_materia AS nombre_materia,
-         hc.fecha,
-         hc.inicio
-       FROM hora_clase hc
-       JOIN clase c     ON hc.clase_id   = c.id
-       JOIN profesor p  ON c.profesor_id = p.id
-       JOIN materia m   ON c.materia_id  = m.id
-       WHERE hc.id = ?`,
-      [bloqueHorarioId]
-    );
+    const [[claseProfesor]] = await pool.execute(
+  `SELECT
+     CONCAT(p.nombre, ' ', p.apellido) AS profesorUsuario,
+     m.nombre_materia                   AS nombre_materia,
+     hc.fecha,
+     hc.inicio
+   FROM hora_clase hc
+   JOIN clase c     ON hc.clase_id   = c.id
+   JOIN profesor p  ON c.profesor_id = p.id
+   JOIN materia m   ON c.materia_id  = m.id
+   WHERE hc.id = ?`,
+  [bloqueHorarioId]
+);
 
     if (claseProfesor && alumno) {
       const titulo   = 'Nueva clase agendada';
