@@ -33,11 +33,13 @@ router.post('/reservar', async (req, res) => {
       return res.status(409).json({ mensaje: 'El bloque ya está reservado' });
     }
 
-    // Crear reserva
     const [reservaRes] = await connection.execute(
-      `INSERT INTO reserva_clase (alumno_id, hora_clase_id) VALUES (?, ?)`,
-      [alumnoId, bloqueHorarioId]
-    );
+  `INSERT INTO reserva_clase
+     (alumno_id, hora_clase_id, pago_id, fecha_reserva, estado)
+   VALUES
+     (?, ?, NULL, NOW(), 'PENDIENTE')`,
+  [alumnoId, bloqueHorarioId]
+);
 
     // Obtener nombre completo del alumno
     const [[alumno]] = await connection.execute(
